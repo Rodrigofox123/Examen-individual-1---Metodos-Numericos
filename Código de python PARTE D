@@ -1,0 +1,154 @@
+# ==========================================================
+# PARTE D - BUSQUEDA DE RAICES
+# ==========================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
+from scipy.optimize import bisect, newton
+
+# ----------------------------------------------------------
+# Datos experimentales
+# ----------------------------------------------------------
+
+f = np.array([
+    100,120,145,170,200,235,270,310,355,405,
+    460,520,585,655,730,810,895,985,1080,1180,
+    1290,1410,1540,1680,1830,1990,2160,2340,2530,2730
+], dtype=float)
+
+Z = np.array([
+    152.3,149.1,146.8,144.9,142.0,139.5,137.9,136.1,134.8,133.6,
+    132.7,131.9,131.4,131.1,130.9,131.0,131.3,131.9,132.7,133.8,
+    135.2,136.9,138.9,141.1,143.5,146.1,149.0,152.2,155.6,159.2
+], dtype=float)
+
+# ----------------------------------------------------------
+# Umbral de operación segura
+# ----------------------------------------------------------
+
+Z_th = 150.0
+
+# ----------------------------------------------------------
+# Construcción del spline cúbico natural
+# ----------------------------------------------------------
+
+spline = CubicSpline(f, Z, bc_type='natural')
+
+# ----------------------------------------------------------
+# Función objetivo:
+# g(f) = |Z(f)| - Z_th
+# ----------------------------------------------------------
+
+def g(x):
+    return spline(x) - Z_th
+
+# ----------------------------------------------------------
+# Búsqueda visual de intervalos con cambio de signo
+# ----------------------------------------------------------
+
+f_fina = np.linspace(min(f), max(f), 5000)
+
+g_vals = g(f_fina)
+
+intervalos = []
+
+for i in range(len(f_fina)-1):
+
+    if g_vals[i] * g_vals[i+1] < 0:
+
+        intervalos.append((f_fina[i], f_fina[i+1]))
+
+# ----------------------------------------------------------
+# Método de bisección
+# ----------------------------------------------------------
+
+raices_bis = []
+
+for a, b in intervalos:
+
+    raiz = bisect(g, a, b)
+
+    raices_bis.append(raiz)
+
+# ----------------------------------------------------------
+# Método de Newton-Raphson
+# ----------------------------------------------------------
+
+# Derivada del spline
+g_deriv = spline.derivative()
+
+raices_newton = []
+
+for a, b in intervalos:
+
+    # Aproximación inicial
+    x0 = (a + b) / 2
+
+    raiz = newton(g, x0, fprime=g_deriv)
+
+    raices_newton.append(raiz)
+
+# ----------------------------------------------------------
+# Sensibilidad df/dZ
+# df/dZ = 1 / (dZ/df)
+# ----------------------------------------------------------
+
+# Se toma la raíz cercana a 2000 Hz
+f_root = raices_newton[1]
+
+dZ_df = g_deriv(f_root)
+
+sensibilidad = 1 / dZ_df
+
+# ----------------------------------------------------------
+# Resultados numéricos
+# ----------------------------------------------------------
+
+print("========== BISECCION ==========")
+
+for i, r in enumerate(raices_bis):
+
+    print(f"Raiz {i+1}: {r:.4f} Hz")
+
+print("\n========== NEWTON-RAPHSON ==========")
+
+for i, r in enumerate(raices_newton):
+
+    print(f"Raiz {i+1}: {r:.4f} Hz")
+
+print("\n========== SENSIBILIDAD ==========")
+
+print(f"df/dZ = {sensibilidad:.4f} Hz/ohm")
+
+# ----------------------------------------------------------
+# Gráfica
+# ----------------------------------------------------------
+
+plt.figure(figsize=(10,6))
+
+# Curva spline
+plt.plot(f_fina, spline(f_fina),
+         linewidth=2,
+         label='Spline cúbico')
+
+# Línea umbral
+plt.axhline(Z_th,
+            color='red',
+            linestyle='--',
+            label='Z_th = 150 ohm')
+
+# Raíces
+for r in raices_newton:
+
+    plt.plot(r, spline(r), 'ko', markersize=8)
+
+plt.xlabel('Frecuencia (Hz)')
+plt.ylabel('|Z| (ohm)')
+
+plt.title('Búsqueda de raíces')
+
+plt.grid(True)
+plt.legend()
+
+plt.show()
