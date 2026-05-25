@@ -1,0 +1,101 @@
+# ==========================================================
+# PARTE B2 - SPLINES CUBICOS
+# ==========================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
+
+# ----------------------------------------------------------
+# Datos experimentales
+# ----------------------------------------------------------
+
+f = np.array([
+    100,120,145,170,200,235,270,310,355,405,
+    460,520,585,655,730,810,895,985,1080,1180,
+    1290,1410,1540,1680,1830,1990,2160,2340,2530,2730
+], dtype=float)
+
+Z = np.array([
+    152.3,149.1,146.8,144.9,142.0,139.5,137.9,136.1,134.8,133.6,
+    132.7,131.9,131.4,131.1,130.9,131.0,131.3,131.9,132.7,133.8,
+    135.2,136.9,138.9,141.1,143.5,146.1,149.0,152.2,155.6,159.2
+], dtype=float)
+
+# ----------------------------------------------------------
+# Construcción del spline cúbico natural
+# bc_type='natural' impone segunda derivada cero
+# en los extremos del intervalo
+# ----------------------------------------------------------
+
+spline = CubicSpline(f, Z, bc_type='natural')
+
+# ----------------------------------------------------------
+# Malla fina para visualizar el spline
+# ----------------------------------------------------------
+
+f_fina = np.linspace(min(f), max(f), 1000)
+
+# Evaluación del spline
+Z_spline = spline(f_fina)
+
+# ----------------------------------------------------------
+# Valor interpolado en 1000 Hz
+# ----------------------------------------------------------
+
+f_eval = 1000
+
+Z_1000 = spline(f_eval)
+
+# ----------------------------------------------------------
+# Comparación con polinomio grado 10
+# ----------------------------------------------------------
+
+coef_10 = np.polyfit(f, Z, 10)
+
+p10 = np.poly1d(coef_10)
+
+Z_poly10 = p10(f_fina)
+
+Z_poly_1000 = p10(f_eval)
+
+# ----------------------------------------------------------
+# Resultados numéricos
+# ----------------------------------------------------------
+
+print("========== RESULTADOS ==========")
+
+print(f"Spline cúbico en 1000 Hz = {Z_1000:.4f} ohm")
+
+print(f"Polinomio grado 10 en 1000 Hz = {Z_poly_1000:.4f} ohm")
+
+# ----------------------------------------------------------
+# Gráfica comparativa
+# ----------------------------------------------------------
+
+plt.figure(figsize=(10,6))
+
+# Datos experimentales
+plt.plot(f, Z, 'ko', label='Datos experimentales')
+
+# Spline cúbico
+plt.plot(f_fina, Z_spline, linewidth=2,
+         label='Spline cúbico natural')
+
+# Polinomio grado 10
+plt.plot(f_fina, Z_poly10, '--',
+         label='Polinomio grado 10')
+
+# Punto evaluado
+plt.plot(f_eval, Z_1000, 'ro', markersize=8,
+         label='Evaluación en 1000 Hz')
+
+plt.xlabel('Frecuencia (Hz)')
+plt.ylabel('|Z| (ohm)')
+
+plt.title('Comparación: Spline cúbico vs Polinomio')
+
+plt.grid(True)
+plt.legend()
+
+plt.show()
