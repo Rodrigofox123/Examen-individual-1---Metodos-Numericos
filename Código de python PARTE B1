@@ -1,0 +1,149 @@
+# ==========================================================
+# PARTE B1 - INTERPOLACION POLINOMICA
+# ==========================================================
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import lagrange
+
+# ----------------------------------------------------------
+# Datos experimentales
+# ----------------------------------------------------------
+
+f = np.array([
+    100,120,145,170,200,235,270,310,355,405,
+    460,520,585,655,730,810,895,985,1080,1180,
+    1290,1410,1540,1680,1830,1990,2160,2340,2530,2730
+], dtype=float)
+
+Z = np.array([
+    152.3,149.1,146.8,144.9,142.0,139.5,137.9,136.1,134.8,133.6,
+    132.7,131.9,131.4,131.1,130.9,131.0,131.3,131.9,132.7,133.8,
+    135.2,136.9,138.9,141.1,143.5,146.1,149.0,152.2,155.6,159.2
+], dtype=float)
+
+# ----------------------------------------------------------
+# Escalamiento de frecuencia
+# Ayuda a evitar problemas numéricos en polinomios altos
+# ----------------------------------------------------------
+
+f_scaled = (f - np.mean(f)) / np.std(f)
+
+# ----------------------------------------------------------
+# Construcción de polinomios de distintos grados
+# ----------------------------------------------------------
+
+grado_5 = np.polyfit(f_scaled, Z, 5)
+grado_10 = np.polyfit(f_scaled, Z, 10)
+grado_29 = np.polyfit(f_scaled, Z, 29)
+
+# ----------------------------------------------------------
+# Generación de funciones polinómicas
+# ----------------------------------------------------------
+
+p5 = np.poly1d(grado_5)
+p10 = np.poly1d(grado_10)
+p29 = np.poly1d(grado_29)
+
+# ----------------------------------------------------------
+# Malla fina para visualizar interpolación
+# ----------------------------------------------------------
+
+f_fina = np.linspace(min(f), max(f), 1000)
+
+f_fina_scaled = (f_fina - np.mean(f)) / np.std(f)
+
+# ----------------------------------------------------------
+# Evaluación de polinomios
+# ----------------------------------------------------------
+
+Z5 = p5(f_fina_scaled)
+Z10 = p10(f_fina_scaled)
+Z29 = p29(f_fina_scaled)
+
+# ----------------------------------------------------------
+# Valor interpolado en 1000 Hz
+# ----------------------------------------------------------
+
+f_eval = 1000
+
+f_eval_scaled = (f_eval - np.mean(f)) / np.std(f)
+
+Z_interp = p10(f_eval_scaled)
+
+# ----------------------------------------------------------
+# Validación Leave-One-Out (LOO)
+# Se eliminan 5 puntos aleatorios
+# ----------------------------------------------------------
+
+np.random.seed(10)
+
+indices = np.random.choice(len(f), 5, replace=False)
+
+errores = []
+
+for idx in indices:
+
+    # Datos de entrenamiento
+    f_train = np.delete(f, idx)
+    Z_train = np.delete(Z, idx)
+
+    # Escalamiento
+    f_train_scaled = (f_train - np.mean(f_train)) / np.std(f_train)
+
+    # Polinomio de grado 10
+    coef = np.polyfit(f_train_scaled, Z_train, 10)
+
+    p = np.poly1d(coef)
+
+    # Escalar punto de prueba
+    f_test_scaled = (f[idx] - np.mean(f_train)) / np.std(f_train)
+
+    # Predicción
+    Z_pred = p(f_test_scaled)
+
+    # Error relativo
+    error = abs((Z[idx] - Z_pred) / Z[idx])
+
+    errores.append(error)
+
+# Error promedio
+error_relativo = np.mean(errores)
+
+# ----------------------------------------------------------
+# Resultados numéricos
+# ----------------------------------------------------------
+
+print("========== RESULTADOS ==========")
+
+print(f"|Z|(1000 Hz) = {Z_interp:.4f} ohm")
+
+print(f"Error relativo promedio LOO = {error_relativo:.4f}")
+
+# ----------------------------------------------------------
+# Grafica comparativa
+# ----------------------------------------------------------
+
+plt.figure(figsize=(10,6))
+
+# Datos experimentales
+plt.plot(f, Z, 'ko', label='Datos')
+
+# Polinomios
+plt.plot(f_fina, Z5, label='Grado 5')
+plt.plot(f_fina, Z10, label='Grado 10')
+plt.plot(f_fina, Z29, label='Grado 29')
+
+# Punto interpolado
+plt.plot(f_eval, Z_interp, 'ro', markersize=8,
+         label='Interpolación en 1000 Hz')
+
+plt.xlabel('Frecuencia (Hz)')
+plt.ylabel('|Z| (ohm)')
+
+plt.title('Interpolación Polinómica')
+
+plt.grid(True)
+plt.legend()
+
+plt.show()
