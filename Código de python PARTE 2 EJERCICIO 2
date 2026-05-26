@@ -1,0 +1,149 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
+
+# ============================================
+# DATOS
+# ============================================
+
+f = np.array([
+    10.0,12.5,15.0,17.5,20.0,22.5,25.0,27.5,30.0,32.5,
+    35.0,37.5,40.0,42.5,45.0,47.5,50.0,52.5,55.0,57.5,
+    60.0,62.5,65.0,67.5,70.0,72.5,75.0,77.5,80.0,82.5,
+    85.0,87.5,90.0,92.5,95.0,97.5,100.0,102.5,105.0,107.5
+])
+
+V = np.array([
+    0.842,0.911,0.986,1.062,1.143,1.227,1.314,1.401,1.482,1.551,
+    1.216,1.048,0.866,0.689,0.521,0.364,0.223,0.103,0.012,-0.041,
+    -0.057,-0.034,0.018,0.096,0.197,0.318,0.452,0.579,0.700,0.809,
+    0.611,0.688,0.756,0.811,0.856,0.894,0.926,0.954,0.980,1.004
+])
+
+# Espaciado uniforme
+h = 2.5
+
+# ============================================
+# 2.1 DIFERENCIA CENTRADA ORDEN 2
+# dV/df en 40 kHz
+# ============================================
+
+i40 = np.where(f == 40.0)[0][0]
+
+dV_40_o2 = (V[i40+1] - V[i40-1]) / (2*h)
+
+# ============================================
+# 2.2 DIFERENCIA CENTRADA ORDEN 4
+# dV/df en 70 kHz
+# ============================================
+
+i70 = np.where(f == 70.0)[0][0]
+
+dV_70_o4 = (
+    -V[i70+2]
+    + 8*V[i70+1]
+    - 8*V[i70-1]
+    + V[i70-2]
+) / (12*h)
+
+# ============================================
+# 2.3 DIFERENCIA PROGRESIVA
+# dV/df en 100 kHz
+# ============================================
+
+i100 = np.where(f == 100.0)[0][0]
+
+dV_100_prog = (
+    -3*V[i100]
+    + 4*V[i100+1]
+    - V[i100+2]
+) / (2*h)
+
+# ============================================
+# 2.4 SPLINE CÚBICO Y DERIVADAS
+# ============================================
+
+spline_V = CubicSpline(f, V, bc_type='natural')
+
+dV_40_spline = spline_V.derivative()(40.0)
+dV_70_spline = spline_V.derivative()(70.0)
+dV_100_spline = spline_V.derivative()(100.0)
+
+# ============================================
+# RESULTADOS
+# ============================================
+
+print("=========== DERIVACIÓN NUMÉRICA ===========")
+
+print(f"dV/df en 40 kHz (Orden 2) = {dV_40_o2:.6f} V/kHz")
+
+print(f"dV/df en 70 kHz (Orden 4) = {dV_70_o4:.6f} V/kHz")
+
+print(f"dV/df en 100 kHz (Progresiva) = {dV_100_prog:.6f} V/kHz")
+
+print("\n=========== DERIVADA DEL SPLINE ===========")
+
+print(f"dV/df en 40 kHz = {dV_40_spline:.6f} V/kHz")
+
+print(f"dV/df en 70 kHz = {dV_70_spline:.6f} V/kHz")
+
+print(f"dV/df en 100 kHz = {dV_100_spline:.6f} V/kHz")
+
+# ============================================
+# GRAFICAR SEÑAL Y PUNTOS DE DERIVACIÓN
+# ============================================
+
+# Mallado fino para curva suave
+f_suave = np.linspace(min(f), max(f), 1000)
+V_suave = spline_V(f_suave)
+
+plt.figure(figsize=(11,5))
+
+# Datos originales
+plt.plot(f, V, 'o', label='Datos experimentales')
+
+# Curva spline
+plt.plot(f_suave, V_suave, label='Spline cúbico')
+
+# Puntos evaluados
+plt.plot(40, spline_V(40), 'rs', markersize=8,
+         label='dV/df en 40 kHz')
+
+plt.plot(70, spline_V(70), 'gs', markersize=8,
+         label='dV/df en 70 kHz')
+
+plt.plot(100, spline_V(100), 'bs', markersize=8,
+         label='dV/df en 100 kHz')
+
+# ============================================
+# RECTAS TANGENTES
+# y = y0 + m(x-x0)
+# ============================================
+
+# Tangente en 40 kHz
+x1 = np.linspace(35,45,100)
+y1 = spline_V(40) + dV_40_spline*(x1-40)
+
+# Tangente en 70 kHz
+x2 = np.linspace(65,75,100)
+y2 = spline_V(70) + dV_70_spline*(x2-70)
+
+# Tangente en 100 kHz
+x3 = np.linspace(95,105,100)
+y3 = spline_V(100) + dV_100_spline*(x3-100)
+
+plt.plot(x1, y1, '--')
+plt.plot(x2, y2, '--')
+plt.plot(x3, y3, '--')
+
+# ============================================
+# CONFIGURACIÓN
+# ============================================
+
+plt.title('Derivación numérica de V(f)')
+plt.xlabel('Frecuencia (kHz)')
+plt.ylabel('Voltaje V(f)')
+plt.grid(True)
+plt.legend()
+
+plt.show()
